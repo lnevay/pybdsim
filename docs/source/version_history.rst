@@ -2,7 +2,7 @@
 Version History
 ===============
 
-v3.7.0 - 2025 / 06 / XX
+v3.7.0 - 2025 / 11 / 07
 =======================
 
 * New parallelisation functions in :code:`pybdsim.Run` module for each tool.
@@ -17,8 +17,6 @@ v3.7.0 - 2025 / 06 / XX
 * Dependency on `jinja2` introduced.
 * Add emittance plot to standard plots for :code:`pybdsim.Plot.BDSIMOptics`.
 * Ability to split a Builder.Element instance with the division operator.
-
-
 * Fix :code:`pybdsim.Plot.Spectra` when exactly 9 particles types were used.
 * Fix spelling of integrate functions in TH1 and TH2.
 * New :code:`pybdsim.Plot.MeshSteps` to plot projected layers through a scoring mesh (i.e. TH3).
