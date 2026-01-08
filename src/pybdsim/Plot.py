@@ -1021,7 +1021,7 @@ def MeshSteps(th3, sliceDimension='z', integrateAlong='x', startSlice=0, endSlic
                         figsize=figsize, swapXAxis=swapXAxis, log=log, ax=ax, c=colours[i // 2])
 
     sm = _plt.cm.ScalarMappable(cmap="viridis", norm=_plt.Normalize(vmin=color_low, vmax=colour_high))
-    _plt.colorbar(sm, label=sliceDimension + " (m)")
+    _plt.colorbar(sm, ax=ax, label=sliceDimension + " (m)")
     if xlabel:
         _plt.xlabel(xlabel)
     else:
