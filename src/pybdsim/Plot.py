@@ -522,7 +522,7 @@ def Histogram1D(histogram, xlabel=None, ylabel=None, title=None, scalingFactor=1
     :param log: whether to automatically plot on a vertical log scale
     :param ax: Matplotlib.Axis instance to draw into. If None, a figure will be created.
 
-    return figure instance
+    return figure instance, axis instance
     """
     if 'drawstyle' not in errorbarKwargs:
         errorbarKwargs['drawstyle'] = 'steps-mid'
@@ -532,6 +532,8 @@ def Histogram1D(histogram, xlabel=None, ylabel=None, title=None, scalingFactor=1
     if not ax:
         f = _plt.figure(figsize=figsize)
         ax = f.add_subplot(111)
+    else:
+        f = ax.get_figure()
     
     sf  = scalingFactor #shortcut
     xsf = xScalingFactor
@@ -592,9 +594,9 @@ def Histogram1D(histogram, xlabel=None, ylabel=None, title=None, scalingFactor=1
         ax.set_xlim(suggestedXMin, 1.05*xmax)
 
     if not incomingAxis:
-        _plt.tight_layout()
+        f.set_tight_layout(True)
     
-    return _plt.gcf()
+    return f, ax
 
 
 def SpectraSelect(spectra, pdgids,
@@ -731,6 +733,8 @@ def Histogram1DMultiple(histograms, labels, log=False, xlog=False, xlabel=None, 
     if not ax:
         f = _plt.figure(figsize=figsize)
         ax = f.add_subplot(111)
+    else:
+        f = ax.get_figure()
     
     if scalingFactors is None:
         scalingFactors = _np.ones_like(histograms)
@@ -809,7 +813,7 @@ def Histogram1DMultiple(histograms, labels, log=False, xlog=False, xlabel=None, 
     if not incomingAxis:
         _plt.tight_layout()
     
-    return _plt.gcf()
+    return f, ax
 
 
 def Histogram2D(histogram, logNorm=False, xLogScale=False, yLogScale=False, xlabel="", ylabel="",
@@ -940,7 +944,7 @@ def Histogram3D(th3):
     colours = _plt.cm.viridis(l(th3.contents))
     colours[:,:,:,3] = d.data
     ax.voxels(fill, facecolors=colours)
-    return f
+    return f, ax
 
 
 def MeshSteps(th3, sliceDimension='z', integrateAlong='x', startSlice=0, endSlice=None,
@@ -969,6 +973,8 @@ def MeshSteps(th3, sliceDimension='z', integrateAlong='x', startSlice=0, endSlic
     :type xlabel: str
     :type ylabel: ylabel to use on final plot
     :type ylabel: str
+
+    :return: figure
     """
     allowedDimensions = ['x', 'y', 'z']
     if sliceDimension not in allowedDimensions:
@@ -980,6 +986,8 @@ def MeshSteps(th3, sliceDimension='z', integrateAlong='x', startSlice=0, endSlic
     if ax is None:
         f = _plt.figure(figsize=figsize)
         ax = f.add_subplot(111)
+    else:
+        f = ax.get_figure()
 
     # for colour normalisation
     ar = getattr(th3, sliceDimension+"centres")
@@ -1031,6 +1039,7 @@ def MeshSteps(th3, sliceDimension='z', integrateAlong='x', startSlice=0, endSlic
     if title:
         _plt.title(title)
     _plt.ylim(miny, maxy*1.05)
+    return f, ax
 
 
 def Histogram3DSlices(th3, sliceDimension='z', startSlice=0, endSlice=-1,
@@ -1053,6 +1062,8 @@ def Histogram3DSlices(th3, sliceDimension='z', startSlice=0, endSlice=-1,
     :type startSlice: int
     :param endSlice: last index of the 2D slices
     :type endSlice: int
+
+    :return list(figure), list(axis):
     """
     if sliceDimension not in ['x', 'y', 'z']:
         raise ValueError("sliceDimension must be 'x', 'y' or 'z'")
@@ -1076,13 +1087,17 @@ def Histogram3DSlices(th3, sliceDimension='z', startSlice=0, endSlice=-1,
         vmin = _np.min(th3.contents[th3.contents>0])
     if not vmax:
         vmax = _np.max(th3.contents)
+    figs, axs = [], []
     for i in range(startSlice, endSlice):
         slice = f(i)
         title = "Slice " + str(i) + " at " + sliceDimension + " = "+"{:.2f}".format(sliceDimCentres[i])
         fig, ax = Histogram2D(slice, logNorm=logNorm, xlabel=xlabel, ylabel=ylabel, zlabel=zlabel, title=title,
                               figsize=figsize, scalingFactor=scalingFactor, vmin=vmin, vmax=vmax, swapXAxis=swapXAxis)
+        figs.append(fig)
+        axs.append(ax)
         if savingPrefix:
             fig.savefig(savingPrefix+"slice_"+f'{i:03}'+".png", dpi=400)
+        return figs, axs
 
 
 def Histogram1DRatio(histogram1, histogram2, label1="", label2="", xLogScale=False, yLogScale=False, xlabel=None, ylabel=None, title=None, scalingFactor=1.0, xScalingFactor=1.0, figsize=(6.4, 4.8), ratio=3, histogram1Colour=None, histogram2Colour=None, ratioColour=None, ratioYAxisLimit=None, **errorbarKwargs):
@@ -1096,6 +1111,8 @@ def Histogram1DRatio(histogram1, histogram2, label1="", label2="", xLogScale=Fal
     :param ratio:  integer ratio of main plot height to ratio plot height (recommend 1 - 5)
     :param ratioYAxisLimit: ylim upper for ratio subplot y axis
     :type  ratioYAxisLimit: tuple(float, float)
+
+    :return figure, [axHist, axRatio]:
 
     If the labels are "" then the histogram.title string will be used. If None, then
     no label will be added.
@@ -1178,7 +1195,7 @@ def Histogram1DRatio(histogram1, histogram2, label1="", label2="", xLogScale=Fal
     # when using gridspec, we use its tight layout
     gs.tight_layout(fig)
 
-    return fig
+    return fig, [axHist, axRatio]
 
 
 def PrimaryPhaseSpace(filename, outputfilename=None, extension='.pdf'):
