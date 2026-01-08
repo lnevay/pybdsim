@@ -553,6 +553,8 @@ def Histogram1D(histogram, xlabel=None, ylabel=None, title=None, scalingFactor=1
     if not ax:
         f = _plt.figure(figsize=figsize)
         ax = f.add_subplot(111)
+    else:
+        f = ax.get_figure()
     
     sf  = scalingFactor #shortcut
     xsf = xScalingFactor
@@ -613,9 +615,9 @@ def Histogram1D(histogram, xlabel=None, ylabel=None, title=None, scalingFactor=1
         ax.set_xlim(suggestedXMin, 1.05*xmax)
 
     if not incomingAxis:
-        _plt.tight_layout()
+        f.set_tight_layout(True)
     
-    return _plt.gcf()
+    return f
 
 
 def SpectraSelect(spectra, pdgids,
@@ -990,6 +992,8 @@ def MeshSteps(th3, sliceDimension='z', integrateAlong='x', startSlice=0, endSlic
     :type xlabel: str
     :type ylabel: ylabel to use on final plot
     :type ylabel: str
+
+    :return: figure
     """
     allowedDimensions = ['x', 'y', 'z']
     if sliceDimension not in allowedDimensions:
@@ -1001,6 +1005,8 @@ def MeshSteps(th3, sliceDimension='z', integrateAlong='x', startSlice=0, endSlic
     if ax is None:
         f = _plt.figure(figsize=figsize)
         ax = f.add_subplot(111)
+    else:
+        f = ax.get_figure()
 
     # for colour normalisation
     ar = getattr(th3, sliceDimension+"centres")
@@ -1017,7 +1023,6 @@ def MeshSteps(th3, sliceDimension='z', integrateAlong='x', startSlice=0, endSlic
         endSlice = len([th3.xcentres, th3.ycentres, th3.zcentres][slice_index]) - 1
 
     functions = (th3.Slice2DZY, th3.Slice2DXZ, th3.Slice2DXY)
-    f = functions[slice_index]
 
     # Once a 2d histogram, we have only 'x' and 'y' but these might represent
     # other dimensions. Work out which function to call for which dimension.
@@ -1032,7 +1037,7 @@ def MeshSteps(th3, sliceDimension='z', integrateAlong='x', startSlice=0, endSlic
     miny = _np.inf
     maxy = -_np.inf
     for i in range(startSlice, endSlice + 1, 1):
-        hist = f(i)
+        hist = functions[slice_index](i)
         histo = f_int(hist) # call it on an instance
 
         if i % moduloFraction == 0:
@@ -1042,7 +1047,7 @@ def MeshSteps(th3, sliceDimension='z', integrateAlong='x', startSlice=0, endSlic
                 miny = min(miny, _np.min(histo.contents - histo.errors))
             maxy = max(maxy, _np.max(histo.contents + histo.errors))
             Histogram1D(histo, scalingFactor=scalingFactor, xScalingFactor=xScalingFactor,
-                        figsize=figsize, swapXAxis=swapXAxis, log=log, ax=ax, c=colours[i // 2])
+                             figsize=figsize, swapXAxis=swapXAxis, log=log, ax=ax, c=colours[i // 2])
 
     sm = _plt.cm.ScalarMappable(cmap="viridis", norm=_plt.Normalize(vmin=color_low, vmax=colour_high))
     _plt.colorbar(sm, ax=ax, label=sliceDimension + " (m)")
@@ -1055,6 +1060,7 @@ def MeshSteps(th3, sliceDimension='z', integrateAlong='x', startSlice=0, endSlic
     if title:
         _plt.title(title)
     _plt.ylim(miny, maxy*1.05)
+    return f
 
 
 def Histogram3DSlices(th3, sliceDimension='z', startSlice=0, endSlice=-1,
