@@ -509,6 +509,27 @@ def BDSIMOptics(rebdsimOpticsOutput, outputfilename=None, saveall=True, survey=N
         print("Written ", output_filename)
 
 
+def MinimumNonZeroValue(histogram, scalingFactor=1.0):
+    """
+    Return a suitable minimum for a log scale plot of a histogram.
+    :param histogram: histogram instance to inspect
+    :type: histogram: pybdsim.Data.TH1, pybdsim.Data.TH2, pybdsim.Data.TH3
+    :param scalingFactor: multiplier for values
+    :type: scalingFactor: float
+
+    :return minimum: minimum non-zero value for the histogram
+    :type: minimum: float
+    """
+    # round down to the nearest power of 10
+    # not contents-errors may have a bin with 100% error, so we get ~0 or
+    # with numerical precision something very small like 1e-22. Therefore,
+    # just round down to next power of 10 on the contents.
+    h = histogram
+    sf = scalingFactor
+    minimum = sf * 10 ** (_np.floor(_np.log10(_np.min(h.contents[h.contents > 0]))))
+    return minimum
+
+
 def Histogram1D(histogram, xlabel=None, ylabel=None, title=None, scalingFactor=1.0, xScalingFactor=1.0,
                 figsize=(6.4, 4.8), swapXAxis=False, log=False, xlog=False, ax=None, **errorbarKwargs):
     """
@@ -571,7 +592,7 @@ def Histogram1D(histogram, xlabel=None, ylabel=None, title=None, scalingFactor=1
         # not contents-errors may have a bin with 100% error, so we get ~0 or
         # with numerical precision something very small like 1e-22. Therefore,
         # just round down to next power of 10 on the contents.
-        ymin = sf * 10 ** (_np.floor(_np.log10(_np.min(h.contents[h.contents > 0]))))
+        ymin = MinimumNonZeroValue(h, sf)
         ax.set_ylim(abs(ymin)*0.9,abs(ymax)*1.3)
         if _modernMatplotlib:
             ax.set_yscale('log', nonpositive='clip')
@@ -1008,14 +1029,17 @@ def MeshSteps(th3, sliceDimension='z', integrateAlong='x', startSlice=0, endSlic
     f_int = functions_int[int_index]
     
     colours = _plt.cm.viridis(_np.linspace(0, 1, int(endSlice/2)+1))
-    miny = 0
-    maxy = 0
+    miny = _np.inf
+    maxy = -_np.inf
     for i in range(startSlice, endSlice + 1, 1):
         hist = f(i)
         histo = f_int(hist) # call it on an instance
 
         if i % moduloFraction == 0:
-            miny = min(miny, _np.min(histo.contents))
+            if log:
+                miny = min(miny, MinimumNonZeroValue(histo))
+            else:
+                miny = min(miny, _np.min(histo.contents - histo.errors))
             maxy = max(maxy, _np.max(histo.contents + histo.errors))
             Histogram1D(histo, scalingFactor=scalingFactor, xScalingFactor=xScalingFactor,
                         figsize=figsize, swapXAxis=swapXAxis, log=log, ax=ax, c=colours[i // 2])
