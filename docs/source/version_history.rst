@@ -2,6 +2,14 @@
 Version History
 ===============
 
+v3.7.1 - 2026 / 01 / XX
+=======================
+
+* Fixed Issue #24 where Plot.MeshSteps would give an exception with more modern numpy.
+* Fixed import error for latest numpy in Theor.Field.
+* Plot.Histogram1D now returns the figure instance properly.
+* Improvments to MeshSteps and Histogram2D plotting for ranges.
+
 v3.7.0 - 2025 / 11 / 07
 =======================
 
