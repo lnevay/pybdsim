@@ -837,7 +837,7 @@ def Histogram1DMultiple(histograms, labels, log=False, xlog=False, xlabel=None, 
 
 def Histogram2D(histogram, logNorm=False, xLogScale=False, yLogScale=False, xlabel="", ylabel="",
                 zlabel="", title="", aspect="auto", scalingFactor=1.0, xScalingFactor=1.0,
-                yScalingFactor=1.0, figsize=(6,5), vmin=None, autovmin=False, vmax=None,
+                yScalingFactor=1.0, figsize=(6,5), vmin=None, autovmin=True, vmax=None,
                 colourbar=True, ax=None, cax=None, shrink=1.0, swapXAxis=False, **imshowKwargs):
     """
     Plot a pybdsim.Data.TH2 instance.
@@ -875,12 +875,13 @@ def Histogram2D(histogram, logNorm=False, xLogScale=False, yLogScale=False, xlab
         if autovmin and not histEmpty:
             vmin = _np.min(h.contents[h.contents!=0])
         else:
+            print("Setting lower limit to stasitical floor of 1/event")
             vmin = sf*1.0/h.entries # statistical floor and matplotlib requires a finite vmin
     if vmax is None:
         if histEmpty:
             vmax = 1.0
         else:
-            vmax = _np.max(h.contents)
+            vmax = sf*_np.max(h.contents)
     if logNorm:
         d = _copy.deepcopy(sf*h.contents.T)
         norm = _LogNorm(vmin=vmin,vmax=vmax) if vmax is not None else _LogNorm(vmin=vmin)
@@ -929,7 +930,7 @@ def Histogram2D(histogram, logNorm=False, xLogScale=False, yLogScale=False, xlab
 
 def Histogram2DErrors(histogram, logNorm=False, xLogScale=False, yLogScale=False, xlabel="", ylabel="", zlabel="",
                       title="", aspect="auto", scalingFactor=1.0, xScalingFactor=1.0, yScalingFactor=1.0,
-                      figsize=(6,5), vmin=None, autovmin=False, vmax=None, colourbar=True, ax=None,
+                      figsize=(6,5), vmin=None, autovmin=True, vmax=None, colourbar=True, ax=None,
                       cax=None, **imshowKwargs):
     """
     Similar to Histogram2D() but plot the errors from the histogram instead of the contents.
