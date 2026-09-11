@@ -1,6 +1,7 @@
 import pandas as _pd
 import os.path as _path
 import types as _types
+import time as _time
 
 from .Data import _ROOTFileType
 from .Data import LoadROOTLibraries as _LoadROOTLibraries
@@ -106,8 +107,10 @@ def _fill_event_sampler(root_obj, root_tree, pandas_obj) :
                 if attrib == "z" or \
                    attrib == "S" or \
                    attrib == "modelID" or \
-                   attrib == "n":
+                   attrib == "n" :
                     dd[attrib].append(getattr(sampler, attrib))
+                elif attrib == "samplerName" :
+                    dd[attrib].append(str(getattr(sampler, attrib)))
                 else:
                     try :
                         dd[attrib].append(getattr(sampler, attrib)[iprim])
@@ -295,6 +298,8 @@ def _fill_event_csampler(root_obj, root_tree, pandas_obj) :
                    attrib == "modelID" or \
                    attrib == "n":
                     dd[attrib].append(getattr(sampler, attrib))
+                elif attrib == "samplerName" :
+                    dd[attrib].append(str(getattr(sampler, attrib)))
                 else:
                     try :
                         dd[attrib].append(getattr(sampler, attrib)[iprim])
@@ -335,6 +340,8 @@ def _fill_event_ssampler(root_obj, root_tree, pandas_obj) :
                    attrib == "modelID" or \
                    attrib == "n":
                     dd[attrib].append(getattr(sampler, attrib))
+                elif attrib == "samplerName" :
+                    dd[attrib].append(str(getattr(sampler, attrib)))
                 else:
                     try :
                         dd[attrib].append(getattr(sampler, attrib)[iprim])
@@ -490,6 +497,8 @@ class BDSIMOutput:
 
         # store list of file names to get index for each file name
         self.root_file_names = list(self.root_file.GetFileNames())
+
+        self.op = self.get_options()
 
     def get_filename_index(self, file_name):
         if file_name not in self.root_file_names:
@@ -770,6 +779,7 @@ class BDSIMOutput:
                           "backupStepperMomLimit","batch","bdsimPath", "beamlineAngle","beamlineAxisAngle",
                           "beamlineAxisX", "beamlineAxisY","beamlineAxisZ","beamlinePhi",
                           "beamlinePsi","beamlineS","beamlineTheta", "beamlineX","beamlineY","beamlineZ",
+                          "beamPipeIsInfiniteAbsorber",
                           "beampipeMaterial", "beampipeThickness","biasForWorldContents","biasForWorldVacuum",
                           "biasForWorldVolume","buildPoleFaceGeometry","buildTunnel",
                           "buildTunnelFloor","buildTunnelStraight","cavityFieldType",
@@ -857,6 +867,7 @@ class BDSIMOutput:
                    attrib == "inputFileName" or \
                    attrib == "integratorSet" or \
                    attrib == "magnetGeometryType" or \
+                   attrib == "physicsList" or \
                    attrib == "outerMaterialName" or \
                    attrib == "outputFileName" or \
                    attrib == "outputFormat" or \
@@ -996,9 +1007,17 @@ class BDSIMOutput:
     def get_primary_global(self):
         return _fill_event_coords(self.e.PrimaryGlobal, self.et, self)
 
-    def get_eloss(self):
+    def get_eloss(self, timing = False):
         eloss = self.e.Eloss
-        return _fill_event_eloss(eloss, self.et, self)
+
+        start = _time.perf_counter()
+        r = _fill_event_eloss(eloss, self.et, self)
+        end = _time.perf_counter()
+
+        if timing :
+            return r, end-start
+        else :
+            return r
 
     def get_eloss_tunnel(self):
         eloss = self.e.ElossTunnel
@@ -1052,17 +1071,20 @@ class BDSIMOutput:
 
             nstep = []
             partID = []
+            parentID = []
             trackID = []
             for i in range(0,len(traj.partID)) :
                 nstep.append(len(traj.XYZ[i]))
                 trackID.append(traj.trackID[i])
                 partID.append(traj.partID[i])
+                parentID.append(traj.parentID[i])
 
             dd = {}
             dd['nstep'] = nstep
             dd['partID'] = partID
             dd['trackID'] = trackID
-
+            dd['parentID'] = parentID
+            
             df = _pd.DataFrame(_enforce_same_length_dict(dd))
 
             return df
@@ -1070,35 +1092,219 @@ class BDSIMOutput:
             raise Exception("Trajectory requested beyond events generated.")
 
     def get_trajectory(self, i_evnt = 0 , i_traj = 0):
+
         self.et.GetEntry(i_evnt)
 
         traj = self.e.Trajectory
         XYZ = traj.XYZ[i_traj]
-        kineticEnergy = traj.kineticEnergy[i_traj]
 
-        # T  = traj.T[i_traj]
+        if self.op['storeTrajectory'][0]:
+            preWeightsVec = traj.preWeights[i_traj]
+            postWeightsVec = traj.postWeights[i_traj]
+            energyDepositVec = traj.energyDeposit[i_traj]
+            SVec = traj.S[i_traj]
+            modelIndiciesVec = traj.modelIndicies[i_traj]
+        else:
+            preWeightsVec = None
+            postWeightsVec = None
+            energyDepositVec = None
+            SVec = None
+            modelIndiciesVec = None
+
+        if self.op['storeTrajectoryIon'][0]:
+            isIonVec = traj.isIon[i_traj]
+            ionAVec = traj.ionA[i_traj]
+            ionZVec = traj.ionZ[i_traj]
+            nElectronsVec = traj.nElectrons[i_traj]
+        else:
+            isIonVec = None
+            ionAVec = None
+            ionZVec = None
+            nElectronsVec = None
+
+        if self.op['storeTrajectoryKineticEnergy'][0]:
+            kineticEnergy = traj.kineticEnergy[i_traj]
+        else:
+            kineticEnergy = None
+
+        if self.op['storeTrajectoryLocal'][0]:
+            xyz = traj.xyz[i_traj]
+            pxpypz = traj.pxpypz[i_traj]
+        else:
+            xyz = None
+            pxpypz = None
+
+        if self.op['storeTrajectoryLinks'][0]:
+            chargeVec = traj.charge[i_traj]
+            turnsTakenVec = traj.turnsTaken[i_traj]
+            massVec = traj.mass[i_traj]
+            rigidityVec = traj.rigidity[i_traj]
+        else:
+            chargeVec = None
+            turnsTakenVec = None
+            massVec = None
+            rigidityVec = None
+
+        if self.op['storeTrajectoryMaterial'][0]:
+            materialIDVec = traj.materialID[i_traj]
+        else:
+            materialIDVec = None
+
+        if self.op['storeTrajectoryMomentumVector'][0]:
+            PXPYPZ = traj.PXPYPZ[i_traj]
+        else:
+            PXPYPZ = None
+
+        if self.op['storeTrajectoryProcesses'][0]:
+            preProcessTypesVec = traj.preProcessTypes[i_traj]
+            preProcessSubTypesVec = traj.preProcessSubTypes[i_traj]
+            postProcessTypeVec = traj.postProcessTypes[i_traj]
+            postProcessSubTypeVec = traj.postProcessSubTypes[i_traj]
+        else:
+            preProcessTypesVec = None
+            preProcessSubTypesVec = None
+            postProcessTypeVec = None
+            postProcessSubTypeVec = None
+
+        if self.op['storeTrajectoryTime'][0]:
+            TVec = traj.T[i_traj]
+        else:
+            TVec = None
 
         X = []
         Y = []
         Z = []
+        preWeight = []
+        postWeight = []
+        energyDeposit = []
+        S = []
+        modelIndicies = []
+        isIon = []
+        ionA = []
+        ionZ = []
+        nElectrons = []
         KE = []
+        x = []
+        y = []
+        z = []
+        charge = []
+        turnsTaken = []
+        mass = []
+        rigidity = []
+        materialID = []
+        PX = []
+        PY = []
+        PZ = []
+        px = []
+        py = []
+        pz = []
+        preProcessTypes = []
+        preProcessSubTypes = []
+        postProcessType = []
+        postProcessSubType = []
+        T = []
 
         # loop over points
-        for i in range(0,XYZ.size()) :
+        for i in range(0, XYZ.size()):
             X.append(XYZ[i].x())
             Y.append(XYZ[i].y())
             Z.append(XYZ[i].z())
-            KE.append(kineticEnergy[i])
+
+            if self.op['storeTrajectory'][0]:
+                preWeight.append(preWeightsVec[i])
+                postWeight.append(postWeightsVec[i])
+                energyDeposit.append(energyDepositVec[i])
+                S.append(SVec[i])
+                modelIndicies.append(modelIndiciesVec[i])
+
+            if self.op['storeTrajectoryIon'][0]:
+                isIon.append(isIonVec[i])
+                ionA.append(ionAVec[i])
+                ionZ.append(ionZVec[i])
+                nElectrons.append(nElectronsVec[i])
+
+            if self.op['storeTrajectoryKineticEnergy'][0]:
+                KE.append(kineticEnergy[i])
+
+            if self.op['storeTrajectoryLocal'][0]:
+                x.append(xyz[i].x())
+                y.append(xyz[i].y())
+                z.append(xyz[i].z())
+                px.append(pxpypz[i].x())
+                py.append(pxpypz[i].y())
+                pz.append(pxpypz[i].z())
+
+            if self.op['storeTrajectoryLinks'][0]:
+                charge.append(chargeVec[i])
+                turnsTaken.append(turnsTakenVec[i])
+                mass.append(massVec[i])
+                rigidity.append(rigidityVec[i])
+
+            if self.op['storeTrajectoryMaterial'][0]:
+                materialID.append(materialIDVec[i])
+
+            if self.op['storeTrajectoryMomentumVector'][0]:
+                PX.append(PXPYPZ[i].x())
+                PY.append(PXPYPZ[i].y())
+                PZ.append(PXPYPZ[i].z())
+
+            if self.op['storeTrajectoryProcesses'][0]:
+                preProcessTypes.append(preProcessTypesVec[i])
+                preProcessSubTypes.append(preProcessSubTypesVec[i])
+                postProcessType.append(postProcessTypeVec[i])
+                postProcessSubType.append(postProcessSubTypeVec[i])
+
+            if self.op['storeTrajectoryTime'][0]:
+                T.append(TVec[i])
 
         dd = {}
         dd['X'] = X
         dd['Y'] = Y
         dd['Z'] = Z
-        dd['kineticEnergy'] = KE
+        if self.op['storeTrajectory'][0]:
+            dd['preWeight'] = preWeight
+            dd['postWeight'] = postWeight
+            dd['energyDeposit'] = energyDeposit
+            dd['S'] = S
+            dd['modelIndicies'] = modelIndicies
+        if self.op['storeTrajectoryIon'][0]:
+            dd['isIon'] = isIon
+            dd['ionA'] = ionA
+            dd['ionZ'] = ionZ
+            dd['nElectrons'] = nElectrons
+        if self.op['storeTrajectoryKineticEnergy'][0]:
+            dd['kineticEnergy'] = KE
+        if self.op['storeTrajectoryLocal'][0]:
+            dd['x'] = x
+            dd['y'] = y
+            dd['z'] = z
+            dd['px'] = px
+            dd['py'] = py
+            dd['pz'] = pz
+        if self.op['storeTrajectoryLinks'][0]:
+            dd['charge'] = charge
+            dd['turnsTaken'] = turnsTaken
+            dd['mass'] = mass
+            dd['rigidity'] = rigidity
+        if self.op['storeTrajectoryMaterial'][0]:
+            dd['materialID'] = materialID
+        if self.op['storeTrajectoryMomentumVector'][0]:
+            dd['PX'] = PX
+            dd['PY'] = PY
+            dd['PZ'] = PZ
+        if self.op['storeTrajectoryProcesses'][0]:
+            dd['preProcessTypes'] = preProcessTypes
+            dd['preProcessSubTypes'] = preProcessSubTypes
+            dd['postProcessType'] = postProcessType
+            dd['postProcessSubType'] = postProcessSubType
+        if self.op['storeTrajectoryTime'][0]:
+            dd['T'] = T
 
         df = _pd.DataFrame(_enforce_same_length_dict(dd))
 
-        return df
+        return df,  {"parentID":  traj.parentID[i_traj],
+                     "partID": traj.partID[i_traj],
+                     "trackID": traj.trackID[i_traj]}
 
     def get_trajectory_processes(self, i_evnt = 0 , i_traj = 0):
         self.et.GetEntry(i_evnt)
@@ -1118,14 +1324,21 @@ class BDSIMOutput:
     def get_histograms(self):
         pass
 
-    def get_sampler(self, sampler_name):
+    def get_sampler(self, sampler_name, timing = False):
         if sampler_name not in self.sampler_names:
             print("Sampler name not recognized")
             return
 
         sampler = self.e.GetSampler(sampler_name)
 
-        return _fill_event_sampler(sampler, self.et, self)
+        start = _time.perf_counter()
+        s = _fill_event_sampler(sampler, self.et, self)
+        end = _time.perf_counter()
+
+        if timing :
+            return s, end-start
+        else :
+            return s
 
     def get_csampler(self, sampler_name):
         if sampler_name not in self.csampler_names:

@@ -1078,8 +1078,13 @@ class Machine(object):
     redefined - irrespective of if the parameters are different. If
     verbose is used (True), then a warning will be issued.
     """
-    def __init__(self,verbose=False, sr=False, energy0=0.0, charge=-1.0):
+    def __init__(self, verbose=False, sr=False, energy0=0.0, charge=-1.0, sequenceName="lattice"):
         self.verbose   = verbose
+        self.sr        = sr
+        self.energy0   = energy0
+        self.charge    = charge
+        self.sequenceName = sequenceName
+
         self.sequence  = []
         self.elements  = _OrderedDict()
         self.samplers  = []
@@ -1089,12 +1094,9 @@ class Machine(object):
         self.material  = []
         self.beam      = _Beam.Beam()
         self.options   = None
-        self.energy0   = energy0
         self.energy    = []
         self.lenint    = []
-        self.sr        = sr
         self.energy.append(energy0)
-        self.charge    = charge
         self.objects   = []  # list of non-sequence objects e.g crystals, lasers, placements etc.
         self.includesPre  = []
         self.includesPost = []
@@ -1299,7 +1301,7 @@ class Machine(object):
 
     def UpdateCategoryParameter(self, category, parameter, value):
         """
-        Update parameter for all elements of a given category.
+        Update parameter for all elements of a given category (i.e. type).
         """
         names = self.GetNamesOfType(category)
         self.UpdateElements(names, parameter, value)
@@ -1466,7 +1468,7 @@ class Machine(object):
                 pass
             ielement += 1
 
-    def Write(self, filename, verbose=False, overwrite=True):
+    def Write(self, filename, verbose=False, overwrite=True, sequence_name=None):
         """
         Write the machine to a series of gmad files.
 
@@ -1477,9 +1479,10 @@ class Machine(object):
         if self.sr :
             self.SynchrotronRadiationRescale()
 
+        sn = self.sequenceName if sequence_name is None else sequence_name
         verboseresult = verbose or self.verbose
         writer = _Writer.Writer()
-        writer.WriteMachine(self,filename,verboseresult)
+        writer.WriteMachine(self, filename, verbose=verboseresult, overwrite=overwrite, sequence_name=sn)
 
     def AddObject(self, obj):
         """

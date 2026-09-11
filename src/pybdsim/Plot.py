@@ -105,7 +105,7 @@ def AddMachineLatticeFromSurveyToFigureMultiple(figure, machines, tightLayout=Tr
     return d
 
 
-def AddMachineLatticeFromSurveyToFigure(figure, surveyfile, tightLayout=True, sOffset=0., fraction=0.9):
+def AddMachineLatticeFromSurveyToFigure(figure, surveyfile, tightLayout=True, s_offset=0., fraction=0.9):
     """
     Add a machine diagram to the top of the plot in a current figure.
 
@@ -115,8 +115,8 @@ def AddMachineLatticeFromSurveyToFigure(figure, surveyfile, tightLayout=True, sO
     :type surveyfile: str, pybdsim.Data.RebdsimFile, pybdsim.Data.BDSAsciiData, cppyy.gbl.DataLoader
     :param tightLayout: whether to call matplotlib's tight layout after adding the axes.
     :type tightLayout: bool
-    :param sOffset: add this number to the S coordinate of all elements in the machine diagram.
-    :type sOffset: float
+    :param s_offset: add this number to the S coordinate of all elements in the machine diagram.
+    :type s_offset: float
     :param fraction: controls fraction of the figure for the plot, the remainder being used for the survey.
     :type fraction: float
     """
@@ -140,7 +140,7 @@ def AddMachineLatticeFromSurveyToFigure(figure, surveyfile, tightLayout=True, sO
     #axmachine = _PrepareMachineAxes(figure)
     #axmachine.margins(x=0.02)
 
-    DrawMachineLattice(axmachine, sf, sOffset=sOffset)
+    DrawMachineLattice(axmachine, sf, s_offset=s_offset)
     #put callbacks for linked scrolling
     def MachineXlim(ax):
         axmachine.set_autoscale_on(False)
@@ -150,7 +150,7 @@ def AddMachineLatticeFromSurveyToFigure(figure, surveyfile, tightLayout=True, sO
     def Click(a):
         if a.button == 3:
             try:
-                print('Closest element: ',sf.NameFromNearestS(a.xdata - sOffset))
+                print('Closest element: ', sf.NameFromNearestS(a.xdata - s_offset))
             except ValueError:
                 pass # don't complain if the S is out of bounds
 
@@ -159,7 +159,7 @@ def AddMachineLatticeFromSurveyToFigure(figure, surveyfile, tightLayout=True, sO
     figure.canvas.mpl_connect('button_press_event', Click)
 
 
-def DrawMachineLattice(axesinstance, bdsasciidataobject, sOffset=0.0):
+def DrawMachineLattice(axesinstance, bdsasciidataobject, s_offset=0.0):
     """
     The low-level version of drawing a machine diagram. Draws into an axes instance
     given using loaded model data in the form of a pybdsim.Data.BDSAsciiData instance.
@@ -168,8 +168,8 @@ def DrawMachineLattice(axesinstance, bdsasciidataobject, sOffset=0.0):
     :type axesinstance: matplotlib.axes.Axes
     :param: bdsasciidataobject The model data.
     :type bdsasciidataobject: pybdsim.Data.BDSAsciiData
-    :param sOffset: add this value to the S of all machine elements in the diagram.
-    :type sOffset: float
+    :param s_offset: add this value to the S of all machine elements in the diagram.
+    :type s_offset: float
 
     The main interface is AddMachineLatticeFromSurveyToFigure, but this function
     may be useful for more granular plotting, e.g. with custom subfigures / axes.
@@ -205,7 +205,7 @@ def DrawMachineLattice(axesinstance, bdsasciidataobject, sOffset=0.0):
     types   = bds.Type()
     lengths = bds.ArcLength()
     starts  = bds.SStart()
-    starts += sOffset
+    starts += s_offset
     k1      = bds.k1()
 
     for i in range(len(bds)):
@@ -256,10 +256,10 @@ def DrawMachineLattice(axesinstance, bdsasciidataobject, sOffset=0.0):
 
     # plot beam line
     ends = bds.SEnd()
-    smax = ends[-1] + sOffset
-    ax.plot([starts[0] + sOffset, smax],[0,0],'k-',lw=1)
+    smax = ends[-1] + s_offset
+    ax.plot([starts[0] + s_offset, smax], [0, 0], 'k-', lw=1)
     ax.set_ylim(-0.2,0.2)
-    ax.set_xlim(starts[0] + sOffset, smax)
+    ax.set_xlim(starts[0] + s_offset, smax)
 
 
 def SubplotsWithDrawnMachineLattice(survey, nrows=2, machine_plot_gap=0.01, gridspec_kw=None, subplots_kw=None, **fig_kw):
@@ -878,13 +878,10 @@ def Histogram2D(histogram, logNorm=False, xLogScale=False, yLogScale=False, xlab
             print("Setting lower limit to stasitical floor of 1/event")
             vmin = sf*1.0/h.entries # statistical floor and matplotlib requires a finite vmin
     if vmax is None:
-        if histEmpty:
-            vmax = 1.0
-        else:
-            vmax = sf*_np.max(h.contents)
+        vmax = 1.0 if histEmpty else sf*_np.max(h.contents)
     if logNorm:
         d = _copy.deepcopy(sf*h.contents.T)
-        norm = _LogNorm(vmin=vmin,vmax=vmax) if vmax is not None else _LogNorm(vmin=vmin)
+        norm = _LogNorm(vmin=vmin, vmax=vmax) if vmax is not None else _LogNorm(vmin=vmin)
         im = ax.pcolormesh(h.xedges*xsf, h.yedges*ysf, d, norm=norm, rasterized=True, **imshowKwargs)
         #_plt.imshow(d, extent=ext, origin='lower', aspect=aspect, norm=norm, interpolation='none', **imshowKwargs)
         if colourbar:
@@ -971,11 +968,26 @@ def MeshSteps(th3, sliceDimension='z', integrateAlong='x', startSlice=0, endSlic
               moduloFraction=1, xlabel=None, ylabel=None, title=None, scalingFactor=1.0,
               xScalingFactor=1.0, figsize=(6.4, 4.8), swapXAxis=False, log=False, ax=None, **errorbarKwargs):
     """
-    Plot multiple 1D histograms along a given dimension integrateAlong. The integrated 2D histogram originates
-    from slices along dimension sliceDimension. By default, the slices are from 0 to len(th3.zcentres)-1.
-    endSlice is inclusive meaning this slice will be included in the plot The slice index is represented
-    by a colour scale. Only every second histogram is plotted. This function is useful to visualise properties
-    of a scoring mesh. All variables referring to properties of the plot are pushed through to Histogram1D().
+    To be deprecated - see Histogram3DSlices1D
+    """
+    from warnings import warn
+    warn("Please use 'Histogram3DSlices1D' instead", DeprecationWarning)
+    return Histogram3DSlices1D(th3, sliceDimension, integrateAlong, startSlice, endSlice,
+                               moduloFraction, xlabel, ylabel, title, scalingFactor,
+                               xScalingFactor, swapXAxis, log, ax, **errorbarKwargs)
+
+
+def Histogram3DSlices1D(th3, sliceDimension='z', integrateAlong='x', startSlice=0, endSlice=None,
+                        moduloFraction=1, xlabel=None, ylabel=None, title=None, scalingFactor=1.0,
+                        xScalingFactor=1.0, figsize=(6.4, 4.8), swapXAxis=False, log=False, ax=None, **errorbarKwargs):
+    """
+    In the same figure, plot multiple 1D histograms along the dimension 'sliceDimension'. At each slice, the
+    2D slice (of the 3D histogram) is first integrated along 'integrateAlong' dimension.
+
+    The default is 1D histograms for each z position showing the y profile having been integrated in x.
+
+    The slice index is represented by a colour scale. To down-select slices, use the moduloFraction parameter
+    for example as 2 to take every 2nd slice.
 
     :param th3: 3D histogram containing the data.
     :type th3: TH3
@@ -1048,7 +1060,8 @@ def MeshSteps(th3, sliceDimension='z', integrateAlong='x', startSlice=0, endSlic
                 miny = min(miny, _np.min(histo.contents - histo.errors))
             maxy = max(maxy, _np.max(histo.contents + histo.errors))
             Histogram1D(histo, scalingFactor=scalingFactor, xScalingFactor=xScalingFactor,
-                             figsize=figsize, swapXAxis=swapXAxis, log=log, ax=ax, c=colours[i // 2])
+                        figsize=figsize, swapXAxis=swapXAxis, log=log, ax=ax, c=colours[i // 2],
+                        errorbarKwargs=errorbarKwargs)
 
     sm = _plt.cm.ScalarMappable(cmap="viridis", norm=_plt.Normalize(vmin=color_low, vmax=colour_high))
     _plt.colorbar(sm, ax=ax, label=sliceDimension + " (m)")
@@ -1068,22 +1081,37 @@ def Histogram3DSlices(th3, sliceDimension='z', startSlice=0, endSlice=-1,
                       xlabel=None, ylabel=None, zlabel="", scalingFactor=1.0, swapXAxis=False,
                       figsize=(6.4, 4.8), logNorm=False, vmax=None, vmin=None, savingPrefix=None):
     """
-    Plot multiple 1D histograms along a given dimension integrateAlong. The integrated 2D histogram originates
-    from slices along dimension sliceDimension. By default, the slices are from 0 to len(th3.zcentres)-1.
-    endSlice is inclusive meaning this slice will be included in the plot The slice index is represented
-    by a colour scale. Only every second histogram is plotted. This function is useful to visualise properties
-    of a scoring mesh. All variables referring to properties of the plot are pushed through to Histogram1D().
+    Plot multiple 2D histograms along a given dimension sliceDimension. Each figure is saved
+    only if savingPrefix is given. The default is to plot x-y 2D histograms for each z position.
 
     :param th3: 3D histogram containing the
     :type  th3: TH3
     :param sliceDimension: string specifying the dimension along which to slice the histogram.
     :type sliceDimension: str
-    :param integrateAlong: string specifying to integrate the 2D along which dimension.
-    :type integrateAlong: str
     :param startSlice: first index of the 2D slices
     :type startSlice: int
     :param endSlice: last index of the 2D slices
     :type endSlice: int
+    :param xlabel: string specifying the x-axis label
+    :type xlabel: str
+    :param ylabel: string specifying the y-axis label
+    :type ylabel: str
+    :param zlabel: string specifying the colour scale for each 2D histogram
+    :type zlabel: str
+    :param scalingFactor: float specifying the scaling factor for each 2D histogram for all bins
+    :type scalingFactor: float
+    :param swapXAxis: whether to reverse the x-axis direction
+    :type swapXAxis: bool
+    :param figsize: (h, v) figure size a la matplotlib
+    :type figsize: tuple(float, float)
+    :param logNorm: whether each 2D histogram has a log colour scale
+    :type logNorm: bool
+    :param vmax: maximum value of the colour scale
+    :type vmax: float
+    :param vmin: minimum value of the colour scale
+    :type vmin: float
+    :param savingPrefix: prefix for each file name if saving the file
+    :type savingPrefix: str
 
     :return list(figure), list(axis):
     """
@@ -1106,9 +1134,9 @@ def Histogram3DSlices(th3, sliceDimension='z', startSlice=0, endSlice=-1,
     if not ylabel:
         ylabel = yaxis + " (m)"
     if not vmin:
-        vmin = _np.min(th3.contents[th3.contents>0])
+        vmin = _np.min(th3.contents[th3.contents>0])*scalingFactor
     if not vmax:
-        vmax = _np.max(th3.contents)
+        vmax = _np.max(th3.contents)*scalingFactor
     figs, axs = [], []
     for i in range(startSlice, endSlice):
         slice = f(i)
@@ -1119,7 +1147,7 @@ def Histogram3DSlices(th3, sliceDimension='z', startSlice=0, endSlice=-1,
         axs.append(ax)
         if savingPrefix:
             fig.savefig(savingPrefix+"slice_"+f'{i:03}'+".png", dpi=400)
-        return figs, axs
+    return figs, axs
 
 
 def Histogram1DRatio(histogram1, histogram2, label1="", label2="", xLogScale=False, yLogScale=False, xlabel=None, ylabel=None, title=None, scalingFactor=1.0, xScalingFactor=1.0, figsize=(6.4, 4.8), ratio=3, histogram1Colour=None, histogram2Colour=None, ratioColour=None, ratioYAxisLimit=None, **errorbarKwargs):

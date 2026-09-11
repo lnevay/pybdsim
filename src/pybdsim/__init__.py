@@ -69,10 +69,11 @@ from . import External
 from . import Field
 from . import Geant4
 from . import Gmad
+from . import ModelProcessing
 from . import Options
 from . import Plot
 from . import Run
-from . import ModelProcessing
+from . import RootEventAnalysis
 from . import Visualisation
 from . import XSecBias
 from . import _General
@@ -109,14 +110,26 @@ try:
 except:
     pass
 
-try:
+
+# Guarded import of uprood
+try :
+    import uproot as _uproot
+except:
+    _uproot = None
+
+if _uproot :
     from . import DataUproot
     __all__.append("DataUproot")
-except:
-    pass
 
-try:
+# Guarded import of pandas
+try :
+    import pandas as _pandas
+except :
+    _pandas = None
+
+if _pandas:
     from . import DataPandas
     __all__.append("DataPandas")
-except:
-    pass
+
+
+
